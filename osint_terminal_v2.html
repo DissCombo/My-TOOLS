@@ -1,0 +1,316 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  .terminal { background: #0d0d0d; border-radius: 10px; border: 1px solid #333; font-family: 'Courier New', monospace; overflow: hidden; }
+  .titlebar { background: #1a1a1a; padding: 10px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #333; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-r{background:#ff5f57}.dot-y{background:#febc2e}.dot-g{background:#28c840}
+  .titlebar-text { color: #888; font-size: 13px; margin: 0 auto; }
+  .screen { padding: 16px; }
+  .line { color: #00ff41; font-size: 12px; line-height: 1.75; }
+  .line.dim{color:#555}.line.info{color:#5af}.line.warn{color:#fa0}.line.err{color:#f55}.line.head{color:#0f9;font-weight:bold}.line.white{color:#ddd}
+  .mode-bar { display: flex; gap: 5px; margin: 10px 0 8px; flex-wrap: wrap; }
+  .mode-btn { background: #1a1a1a; border: 1px solid #333; color: #888; font-family: 'Courier New', monospace; font-size: 11px; padding: 4px 9px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+  .mode-btn:hover { border-color: #00ff41; color: #00ff41; }
+  .mode-btn.active { background: #00ff4122; border-color: #00ff41; color: #00ff41; }
+  .input-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .prompt { color: #00ff41; font-size: 12px; white-space: nowrap; }
+  .cmd-input { background: transparent; border: none; outline: none; color: #00ff41; font-family: 'Courier New', monospace; font-size: 12px; flex: 1; caret-color: #00ff41; }
+  .run-btn { background: #00ff4122; border: 1px solid #00ff41; color: #00ff41; font-family: 'Courier New', monospace; font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+  .run-btn:hover { background: #00ff4133; }
+  .separator { border: none; border-top: 1px solid #1e1e1e; margin: 8px 0; }
+  .tool-link { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+  .tool-badge { font-size: 10px; padding: 1px 6px; border-radius: 3px; min-width: 66px; text-align: center; background: #00ff4118; color: #00ff41; border: 1px solid #00ff4144; white-space: nowrap; }
+  .tool-badge.blue{background:#5af2;color:#5af;border-color:#5af4}
+  .tool-badge.amber{background:#fa02;color:#fa0;border-color:#fa04}
+  .tool-badge.pink{background:#f5a2;color:#f5a;border-color:#f5a4}
+  .tool-badge.red{background:#f552;color:#f85;border-color:#f554}
+  .tool-badge.teal{background:#0fa2;color:#0fa;border-color:#0fa4}
+  .open-link { color: #5af; font-size: 11px; text-decoration: none; font-family: 'Courier New', monospace; border: 1px solid #5af4; padding: 1px 7px; border-radius: 3px; margin-left: auto; white-space: nowrap; }
+  .open-link:hover { background: #5af2; }
+  .output-box { max-height: 420px; overflow-y: auto; margin-top: 6px; }
+  .output-box::-webkit-scrollbar{width:4px}.output-box::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+  .section-header { color: #fa0; font-size: 11px; margin: 10px 0 4px; letter-spacing: 1px; }
+  .tool-desc { color: #444; font-size: 10px; padding-left: 78px; margin-bottom: 4px; }
+  .summary-bar { display: flex; gap: 10px; margin: 6px 0; flex-wrap: wrap; }
+  .summary-pill { font-size: 10px; padding: 2px 8px; border-radius: 10px; border: 1px solid #333; color: #888; }
+</style>
+
+<div class="terminal">
+  <div class="titlebar">
+    <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+    <span class="titlebar-text">osint-terminal — bash — v2.0</span>
+  </div>
+  <div class="screen">
+    <div class="line head">  ██████╗ ███████╗██╗███╗   ██╗████████╗  v2.0</div>
+    <div class="line dim">  Open Source Intelligence Terminal — Extended Edition</div>
+    <hr class="separator">
+    <div class="line white">Select lookup mode:</div>
+    <div class="mode-bar" id="modeBar">
+      <button class="mode-btn active" data-mode="username">👤 Username</button>
+      <button class="mode-btn" data-mode="ip">🌐 IP Address</button>
+      <button class="mode-btn" data-mode="email">✉ Email</button>
+      <button class="mode-btn" data-mode="domain">🔗 Domain/URL</button>
+      <button class="mode-btn" data-mode="phone">📞 Phone</button>
+    </div>
+    <div class="input-row">
+      <span class="prompt" id="promptLabel">user@osint:~$</span>
+      <input class="cmd-input" id="queryInput" placeholder="enter target..." autocomplete="off" spellcheck="false">
+      <button class="run-btn" id="runBtn">[ RUN ]</button>
+    </div>
+    <hr class="separator">
+    <div class="output-box" id="output">
+      <div class="line dim">// Awaiting input. Select a mode, type a target, press RUN or Enter.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const modes = {
+  username: {
+    label: "user@osint:~$ lookup --username",
+    placeholder: "e.g. johndoe",
+    sections: [
+      {
+        title: "[ SOCIAL PRESENCE ]",
+        tools: [
+          { name: "Sherlock (GitHub)", badge: "400+ sites", cls: "", desc: "CLI tool — hunt username across 400+ networks", url: q => `https://github.com/sherlock-project/sherlock` },
+          { name: "WhatsMyName", badge: "username", cls: "", desc: "Enumerate accounts on hundreds of platforms", url: q => `https://whatsmyname.me/#${encodeURIComponent(q)}` },
+          { name: "NameCheckr", badge: "availability", cls: "teal", desc: "Check username availability across social networks", url: q => `https://www.namecheckr.com/${encodeURIComponent(q)}` },
+          { name: "Namechk", badge: "availability", cls: "teal", desc: "Domain + social handle availability checker", url: q => `https://namechk.com/${encodeURIComponent(q)}` },
+          { name: "UserSearch.org", badge: "search", cls: "", desc: "Find social profiles by username", url: q => `https://usersearch.org/results_normal.php?URL_username=${encodeURIComponent(q)}` },
+          { name: "Search4faces", badge: "reverse", cls: "pink", desc: "Reverse image/profile search (social VK, OK)", url: q => `https://search4faces.com/` },
+        ]
+      },
+      {
+        title: "[ DATA BREACH ]",
+        tools: [
+          { name: "HaveIBeenPwned", badge: "breach", cls: "amber", desc: "Check username/email in known breach databases", url: q => `https://haveibeenpwned.com/unifiedsearch/${encodeURIComponent(q)}` },
+          { name: "DeHashed", badge: "breach db", cls: "amber", desc: "Search leaked databases by username", url: q => `https://dehashed.com/search?query=${encodeURIComponent(q)}` },
+          { name: "LeakCheck", badge: "breach", cls: "amber", desc: "Check if username appeared in leaked data", url: q => `https://leakcheck.io/check?query=${encodeURIComponent(q)}&type=login` },
+          { name: "IntelligenceX", badge: "darkweb", cls: "red", desc: "Search dark web, leaks and paste sites", url: q => `https://intelx.io/?s=${encodeURIComponent(q)}` },
+        ]
+      },
+      {
+        title: "[ WEB FOOTPRINT ]",
+        tools: [
+          { name: "Google (username)", badge: "web", cls: "blue", desc: "Google dork: search username across the web", url: q => `https://www.google.com/search?q=%22${encodeURIComponent(q)}%22` },
+          { name: "Pastebin Search", badge: "paste", cls: "red", desc: "Search Pastebin for mentions of username", url: q => `https://psbdmp.ws/search/${encodeURIComponent(q)}` },
+          { name: "Archive.org", badge: "archive", cls: "teal", desc: "Check Wayback Machine for cached profile pages", url: q => `https://web.archive.org/web/*/${encodeURIComponent(q)}` },
+        ]
+      }
+    ]
+  },
+  ip: {
+    label: "user@osint:~$ lookup --ip",
+    placeholder: "e.g. 8.8.8.8",
+    sections: [
+      {
+        title: "[ GEOLOCATION & ISP ]",
+        tools: [
+          { name: "DB-IP", badge: "geo/asn", cls: "blue", desc: "Geolocation, ISP, ASN, threat data", url: q => `https://db-ip.com/${encodeURIComponent(q)}` },
+          { name: "IP2Location", badge: "geo", cls: "blue", desc: "Detailed geolocation, proxy detection", url: q => `https://www.ip2location.com/demo/${encodeURIComponent(q)}` },
+          { name: "IPinfo.io", badge: "geo/asn", cls: "blue", desc: "IP geolocation, org, ASN, hostname", url: q => `https://ipinfo.io/${encodeURIComponent(q)}` },
+          { name: "IPapi", badge: "geo", cls: "blue", desc: "Country, region, city, lat/lon, timezone", url: q => `https://ipapi.co/${encodeURIComponent(q)}` },
+          { name: "MaxMind GeoIP", badge: "geo", cls: "blue", desc: "MaxMind GeoIP2 demo lookup", url: q => `https://www.maxmind.com/en/geoip2-precision-demo` },
+        ]
+      },
+      {
+        title: "[ WHOIS & REGISTRATION ]",
+        tools: [
+          { name: "DNS Checker Whois", badge: "whois", cls: "", desc: "IP WHOIS, registration, abuse contact", url: q => `https://dnschecker.org/ip-whois-lookup.php?query=${encodeURIComponent(q)}` },
+          { name: "ARIN Whois", badge: "whois", cls: "", desc: "ARIN database — North American IP registry", url: q => `https://search.arin.net/rdap/?query=${encodeURIComponent(q)}` },
+          { name: "RIPE Stat", badge: "whois", cls: "", desc: "European IP registry — RIPE NCC stats", url: q => `https://stat.ripe.net/${encodeURIComponent(q)}` },
+          { name: "Hurricane Electric BGP", badge: "bgp/asn", cls: "teal", desc: "BGP routing, ASN peers, prefix info", url: q => `https://bgp.he.net/ip/${encodeURIComponent(q)}` },
+        ]
+      },
+      {
+        title: "[ THREAT & REPUTATION ]",
+        tools: [
+          { name: "VirusTotal", badge: "threat", cls: "red", desc: "Check IP against 70+ security vendors", url: q => `https://www.virustotal.com/gui/ip-address/${encodeURIComponent(q)}` },
+          { name: "AbuseIPDB", badge: "abuse", cls: "red", desc: "Crowdsourced IP abuse reports database", url: q => `https://www.abuseipdb.com/check/${encodeURIComponent(q)}` },
+          { name: "Shodan", badge: "ports/vulns", cls: "amber", desc: "Open ports, services, banners, CVEs", url: q => `https://www.shodan.io/host/${encodeURIComponent(q)}` },
+          { name: "Censys", badge: "scan", cls: "amber", desc: "Internet-wide scan data for this IP", url: q => `https://search.censys.io/hosts/${encodeURIComponent(q)}` },
+          { name: "GreyNoise", badge: "noise", cls: "amber", desc: "Classify if IP is mass scanner or legit", url: q => `https://viz.greynoise.io/ip/${encodeURIComponent(q)}` },
+          { name: "NordVPN IP Lookup", badge: "vpn/proxy", cls: "blue", desc: "VPN, proxy, Tor exit node detection", url: q => `https://nordvpn.com/ip-lookup/?ip=${encodeURIComponent(q)}` },
+          { name: "ThreatFox (Abuse.ch)", badge: "malware", cls: "red", desc: "IOC database — malware C2 lookups", url: q => `https://threatfox.abuse.ch/browse/` },
+          { name: "itiLog", badge: "tracker", cls: "pink", desc: "Real-time IP tracking and visitor analytics", url: q => `https://www.itilog.com/` },
+        ]
+      },
+      {
+        title: "[ REVERSE DNS & NETWORK ]",
+        tools: [
+          { name: "MXToolbox", badge: "rdns", cls: "", desc: "Reverse DNS, blacklist check, network tools", url: q => `https://mxtoolbox.com/SuperTool.aspx?action=ptr:${encodeURIComponent(q)}` },
+          { name: "DNSlytics", badge: "reverse ip", cls: "", desc: "Reverse IP — find domains hosted on this IP", url: q => `https://dnslytics.com/ip/${encodeURIComponent(q)}` },
+          { name: "Spyse", badge: "network", cls: "teal", desc: "IP infrastructure and relationships", url: q => `https://spyse.com/target/ip/${encodeURIComponent(q)}` },
+        ]
+      }
+    ]
+  },
+  email: {
+    label: "user@osint:~$ lookup --email",
+    placeholder: "e.g. user@example.com",
+    sections: [
+      {
+        title: "[ DATA BREACH ]",
+        tools: [
+          { name: "HaveIBeenPwned", badge: "breach", cls: "amber", desc: "Check email against known breach databases", url: q => `https://haveibeenpwned.com/unifiedsearch/${encodeURIComponent(q)}` },
+          { name: "DeHashed", badge: "breach db", cls: "amber", desc: "Search leaked databases by email", url: q => `https://dehashed.com/search?query=${encodeURIComponent(q)}` },
+          { name: "LeakCheck", badge: "breach", cls: "amber", desc: "Check email in leaked credential dumps", url: q => `https://leakcheck.io/check?query=${encodeURIComponent(q)}&type=email` },
+          { name: "IntelligenceX", badge: "darkweb", cls: "red", desc: "Deep web, darknet, paste search for email", url: q => `https://intelx.io/?s=${encodeURIComponent(q)}` },
+        ]
+      },
+      {
+        title: "[ EMAIL VALIDATION & RECON ]",
+        tools: [
+          { name: "Hunter.io", badge: "verify", cls: "teal", desc: "Email format verification, deliverability check", url: q => `https://hunter.io/email-verifier/${encodeURIComponent(q)}` },
+          { name: "Emailrep.io", badge: "reputation", cls: "", desc: "Email reputation, risk score, activity", url: q => `https://emailrep.io/${encodeURIComponent(q)}` },
+          { name: "Epieos", badge: "recon", cls: "pink", desc: "Google account lookup, Maps reviews, calendar", url: q => `https://epieos.com/?q=${encodeURIComponent(q)}&t=email` },
+          { name: "GHunt (GitHub)", badge: "google", cls: "pink", desc: "CLI tool — Google account OSINT from email", url: q => `https://github.com/mxrch/GHunt` },
+        ]
+      },
+      {
+        title: "[ SOCIAL & WEB ]",
+        tools: [
+          { name: "WhatsMyName (prefix)", badge: "username", cls: "", desc: "Search the email prefix across platforms", url: q => `https://whatsmyname.me/#${encodeURIComponent(q.split('@')[0])}` },
+          { name: "Google dork", badge: "web", cls: "blue", desc: "Google search for email mentions on the web", url: q => `https://www.google.com/search?q=%22${encodeURIComponent(q)}%22` },
+          { name: "Pastebin Search", badge: "paste", cls: "red", desc: "Find email in Pastebin dumps", url: q => `https://psbdmp.ws/search/${encodeURIComponent(q)}` },
+        ]
+      },
+      {
+        title: "[ DOMAIN OF EMAIL ]",
+        tools: [
+          { name: "MXToolbox (domain)", badge: "mx/dns", cls: "", desc: "Check MX, SPF, DMARC for the email domain", url: q => `https://mxtoolbox.com/SuperTool.aspx?action=mx:${encodeURIComponent(q.split('@')[1] || q)}` },
+          { name: "DNS Checker Whois", badge: "whois", cls: "", desc: "WHOIS of the email's domain", url: q => `https://dnschecker.org/ip-whois-lookup.php?query=${encodeURIComponent(q.split('@')[1] || q)}` },
+        ]
+      }
+    ]
+  },
+  domain: {
+    label: "user@osint:~$ lookup --domain",
+    placeholder: "e.g. example.com",
+    sections: [
+      {
+        title: "[ WHOIS & DNS ]",
+        tools: [
+          { name: "DNS Checker Whois", badge: "whois", cls: "", desc: "Domain WHOIS, registrar, DNS records", url: q => `https://dnschecker.org/ip-whois-lookup.php?query=${encodeURIComponent(q)}` },
+          { name: "MXToolbox", badge: "dns/mx", cls: "", desc: "Full DNS, MX, SPF, DMARC, blacklist check", url: q => `https://mxtoolbox.com/SuperTool.aspx?action=dns:${encodeURIComponent(q)}` },
+          { name: "DNSlytics", badge: "dns history", cls: "", desc: "DNS history, reverse IP, related domains", url: q => `https://dnslytics.com/domain/${encodeURIComponent(q)}` },
+          { name: "ViewDNS.info", badge: "dns tools", cls: "", desc: "IP history, reverse whois, traceroute, more", url: q => `https://viewdns.info/iphistory/?domain=${encodeURIComponent(q)}` },
+        ]
+      },
+      {
+        title: "[ THREAT & REPUTATION ]",
+        tools: [
+          { name: "VirusTotal", badge: "threat", cls: "red", desc: "Domain scan against 70+ security vendors", url: q => `https://www.virustotal.com/gui/domain/${encodeURIComponent(q)}` },
+          { name: "URLScan.io", badge: "scan", cls: "red", desc: "Screenshot, DOM, request/response details", url: q => `https://urlscan.io/search/#domain:${encodeURIComponent(q)}` },
+          { name: "Sucuri SiteCheck", badge: "malware", cls: "red", desc: "Malware, blacklist, and security audit", url: q => `https://sitecheck.sucuri.net/results/${encodeURIComponent(q)}` },
+          { name: "Censys", badge: "scan", cls: "amber", desc: "TLS/SSL certs, open ports on domain", url: q => `https://search.censys.io/certificates?q=${encodeURIComponent(q)}` },
+          { name: "Shodan", badge: "ports/vulns", cls: "amber", desc: "Open services and vulnerabilities", url: q => `https://www.shodan.io/search?query=${encodeURIComponent(q)}` },
+        ]
+      },
+      {
+        title: "[ SUBDOMAINS & RECON ]",
+        tools: [
+          { name: "crt.sh", badge: "ssl certs", cls: "teal", desc: "Certificate transparency — find subdomains", url: q => `https://crt.sh/?q=${encodeURIComponent(q)}` },
+          { name: "Sublist3r (GitHub)", badge: "subdomains", cls: "teal", desc: "CLI tool — subdomain enumeration", url: q => `https://github.com/aboul3la/Sublist3r` },
+          { name: "SecurityTrails", badge: "dns/history", cls: "teal", desc: "DNS, subdomains, WHOIS history", url: q => `https://securitytrails.com/domain/${encodeURIComponent(q)}/dns` },
+          { name: "Spyse", badge: "infra", cls: "teal", desc: "IP, SSL, subdomains, related domains", url: q => `https://spyse.com/target/domain/${encodeURIComponent(q)}` },
+        ]
+      },
+      {
+        title: "[ ARCHIVE & TECH ]",
+        tools: [
+          { name: "Wayback Machine", badge: "archive", cls: "", desc: "Archived snapshots of the domain", url: q => `https://web.archive.org/web/*/${encodeURIComponent(q)}` },
+          { name: "BuiltWith", badge: "tech stack", cls: "blue", desc: "Technologies, frameworks, trackers used", url: q => `https://builtwith.com/${encodeURIComponent(q)}` },
+          { name: "Wappalyzer", badge: "tech stack", cls: "blue", desc: "Detect CMS, analytics, JS frameworks", url: q => `https://www.wappalyzer.com/lookup/${encodeURIComponent(q)}` },
+          { name: "DB-IP", badge: "geo/asn", cls: "blue", desc: "IP/ASN info behind the domain", url: q => `https://db-ip.com/${encodeURIComponent(q)}` },
+        ]
+      }
+    ]
+  },
+  phone: {
+    label: "user@osint:~$ lookup --phone",
+    placeholder: "e.g. +14155552671",
+    sections: [
+      {
+        title: "[ CARRIER & VALIDATION ]",
+        tools: [
+          { name: "PhoneInfoga (GitHub)", badge: "recon", cls: "", desc: "CLI tool — carrier, location, line type recon", url: q => `https://github.com/sundowndev/phoneinfoga` },
+          { name: "NumLookup", badge: "carrier", cls: "blue", desc: "Carrier, line type, country, validity check", url: q => `https://www.numlookup.com/?number=${encodeURIComponent(q)}` },
+          { name: "Sync.me", badge: "caller id", cls: "teal", desc: "Crowdsourced caller ID database", url: q => `https://sync.me/search/?number=${encodeURIComponent(q)}` },
+          { name: "Truecaller (web)", badge: "caller id", cls: "teal", desc: "Global caller ID and spam detection", url: q => `https://www.truecaller.com/search/us/${encodeURIComponent(q)}` },
+        ]
+      },
+      {
+        title: "[ SEARCH & SOCIAL ]",
+        tools: [
+          { name: "Google dork", badge: "web", cls: "blue", desc: "Search phone number across the web", url: q => `https://www.google.com/search?q=%22${encodeURIComponent(q)}%22` },
+          { name: "Epieos", badge: "recon", cls: "pink", desc: "Reverse phone — linked Google accounts", url: q => `https://epieos.com/?q=${encodeURIComponent(q)}&t=phone` },
+          { name: "SpyDialer", badge: "voicemail", cls: "pink", desc: "Hear voicemail greeting, identify owner", url: q => `https://www.spydialer.com/default.aspx` },
+        ]
+      },
+      {
+        title: "[ SPAM & REPORTS ]",
+        tools: [
+          { name: "WhoCalledMe", badge: "spam db", cls: "amber", desc: "Community spam and scam call reports", url: q => `https://www.whocalledme.com/PhoneNumber/${encodeURIComponent(q.replace(/\D/g,''))}` },
+          { name: "800notes", badge: "spam db", cls: "amber", desc: "User-reported phone number complaints", url: q => `https://800notes.com/Phone.aspx/${encodeURIComponent(q)}` },
+          { name: "CallerSmart", badge: "spam db", cls: "amber", desc: "Reverse phone lookup and spam reports", url: q => `https://www.callersmart.com/search/${encodeURIComponent(q)}` },
+        ]
+      }
+    ]
+  }
+};
+
+let currentMode = "username";
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentMode = btn.dataset.mode;
+    const m = modes[currentMode];
+    document.getElementById('promptLabel').textContent = m.label;
+    document.getElementById('queryInput').placeholder = m.placeholder;
+    document.getElementById('output').innerHTML = '<div class="line dim">// Mode: ' + currentMode.toUpperCase() + '. Enter target and press RUN.</div>';
+  });
+});
+
+function runLookup() {
+  const q = document.getElementById('queryInput').value.trim();
+  const out = document.getElementById('output');
+  if (!q) { out.innerHTML = '<div class="line err">[-] Error: no target specified.</div>'; return; }
+  const m = modes[currentMode];
+  const totalTools = m.sections.reduce((a, s) => a + s.tools.length, 0);
+
+  let html = `<div class="line info">[*] Target: <span style="color:#fff">${q}</span></div>`;
+  html += `<div class="line info">[*] Mode: ${currentMode.toUpperCase()} — ${totalTools} tools across ${m.sections.length} categories</div>`;
+  html += `<div class="summary-bar">`;
+  m.sections.forEach(s => {
+    html += `<span class="summary-pill">${s.title.replace(/[\[\]]/g,'')} (${s.tools.length})</span>`;
+  });
+  html += `</div><hr class="separator">`;
+
+  m.sections.forEach(s => {
+    html += `<div class="section-header">${s.title}</div>`;
+    s.tools.forEach(t => {
+      const url = t.url(q);
+      html += `<div class="tool-link">
+        <span class="tool-badge ${t.cls}">${t.badge}</span>
+        <span class="line white" style="font-size:12px">${t.name}</span>
+        <a class="open-link" href="${url}" target="_blank">↗ Open</a>
+      </div>
+      <div class="tool-desc">${t.desc}</div>`;
+    });
+  });
+
+  html += `<hr class="separator">`;
+  html += `<div class="line" style="color:#00ff41">[+] ${totalTools} tools loaded. Click [↗ Open] to launch each one.</div>`;
+  html += `<div class="line dim" style="font-size:10px; margin-top:3px;">[!] CLI tools (Sherlock, GHunt, PhoneInfoga) require local install — links open GitHub.</div>`;
+  out.innerHTML = html;
+  out.scrollTop = 0;
+}
+
+document.getElementById('runBtn').addEventListener('click', runLookup);
+document.getElementById('queryInput').addEventListener('keydown', e => { if (e.key === 'Enter') runLookup(); });
+</script>
